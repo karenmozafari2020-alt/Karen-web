@@ -1,0 +1,31 @@
+services:
+  - type: web
+    name: karen-web
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PAYMENT_MODE
+        value: demo
+      - key: ZARINPAL_SANDBOX
+        value: "true"
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: SUPABASE_BUCKET
+        value: template-files
+      - key: ADMIN_USERNAME
+        value: KARENONE
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: SESSION_SECRET
+        sync: false
+      - key: SITE_URL
+        sync: false
+      - key: ZARINPAL_MERCHANT_ID
+        sync: false
