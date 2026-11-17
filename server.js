@@ -119,61 +119,51 @@ async function ensureOwnerAccount() {
     if (error) throw error;
       }
 }
-  
-app.get('/api/messages', auth, requireDb, asyncRoute(async (req, res) => {
-  let query = db.from('messages')
+
+app.get('/api/messages',auth,requireDb,asyncRoute(async(req,res)=>{
+  let query=db.from('messages')
     .select('id,user_id,sender_role,body,created_at')
-    .order('created_at', { ascending: true })
+    .order('created_at',{ascending:true})
     .limit(150);
 
-  if (req.user.role !== 'admin') {
-    query = query.eq('user_id', req.user.id);
+  if(req.user.role!=='admin') {
+    query=query.eq('user_id',req.user.id);
   }
 
-  const { data, error } = await query;
+  const {data:messages,error}=await query;
 
-  if (error) {
-    console.error('MESSAGES ERROR:', error);
+  if(error) {
     return res.status(500).json({
-      error: 'دریافت پیام‌ها ناموفق بود.'
+      error:'دریافت پیام‌ها ناموفق بود.'
     });
   }
 
-  const ids = [...new Set(
-    (data || [])
-      .filter(m => m.sender_role !== 'admin')
-      .map(m => m.user_id)
-  )];
+  const userIds=[...new Set((messages||[]).map(m=>m.user_id))];
+  const usernames=new Map();
 
-  let userMap = {};
-
-  if (ids.length > 0) {
-    const { data: users, error: userError } = await db
+  if(userIds.length) {
+    const {data:accounts,error:userError}=await db
       .from('users')
       .select('id,username')
-      .in('id', ids);
+      .in('id',userIds);
 
-    if (userError) {
-      console.error('MESSAGE USERS ERROR:', userError);
-      return res.status(500).json({
-        error: 'دریافت نام کاربران ناموفق بود.'
-      });
+    if(userError) throw userError;
+
+    for(const account of accounts||[]) {
+      usernames.set(account.id,account.username);
     }
-
-    userMap = Object.fromEntries(
-      (users || []).map(u => [u.id, u.username])
-    );
   }
 
-  const messages = (data || []).map(m => ({
+  const result=(messages||[]).map(m=>({
     ...m,
-    sender_name: m.sender_role === 'admin'
+    sender_name:m.sender_role==='admin'
       ? 'مدیر'
-      : (userMap[m.user_id] || 'کاربر')
+      : (usernames.get(m.user_id)||'کاربر')
   }));
 
-  return res.json(messages);
+  res.json(result);
 }));
+
 
 
 
