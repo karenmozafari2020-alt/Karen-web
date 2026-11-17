@@ -1,19 +1,410 @@
-<!doctype html><html lang="fa" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>پنل مالک | KAREN WEB</title><link rel="stylesheet" href="/style.css"><style>
-.admin-wrap{max-width:1000px;margin:50px auto;padding:0 20px}.admin-panel{background:#151522;border:1px solid #ffffff20;border-radius:14px;padding:24px;margin:20px 0}.admin-form{display:grid;grid-template-columns:1fr 1fr;gap:12px}.admin-form input,.admin-form textarea{width:100%;background:#0d0e18;color:white;border:1px solid #ffffff20;border-radius:8px;padding:12px;font:12px Vazirmatn}.admin-form textarea{grid-column:1/-1;min-height:80px}.admin-form button{grid-column:1/-1}.hint{color:#9999aa;font-size:11px;line-height:2}.admin-row{display:flex;justify-content:space-between;gap:12px;border-top:1px solid #ffffff16;padding:13px 0;font-size:11px}.tabs{display:flex;gap:8px;flex-wrap:wrap;margin:18px 0}.tabs button{background:#ffffff0c;border:1px solid #ffffff20;color:#ddd;padding:9px 14px;border-radius:20px;font:11px Vazirmatn}.tabs button.active{background:#9c7cff30;border-color:#a995f3}.admin-chat{display:flex;gap:8px;margin-top:15px}.admin-chat input{flex:1;background:#0d0e18;border:1px solid #ffffff20;border-radius:8px;color:white;padding:12px}.admin-chat button{background:#9c7cff;color:#100d1d;border:0;border-radius:8px;padding:8px 16px}.user-select{background:#0d0e18;color:white;padding:8px;border:1px solid #ffffff20;border-radius:8px}@media(max-width:600px){.admin-form{grid-template-columns:1fr}.admin-row{flex-direction:column}}
-</style></head><body><header class="topbar"><a class="brand" href="/"><span class="brand-mark">K</span><span>KAREN<span class="brand-light">WEB</span><small>OWNER CONTROL CENTER</small></span></a><a class="admin-link" href="/">بازگشت به فروشگاه ↗</a></header><main class="admin-wrap"><div class="eyebrow">OWNER ACCESS</div><h1>پنل مالک KAREN WEB</h1><p class="hint">این پنل فقط برای حساب مالک KARENONE است. حساب مالک از متغیرهای امن Render ساخته می‌شود.</p>
-<div class="tabs"><button class="active" data-tab="products">قالب‌ها</button><button data-tab="orders">سفارش‌ها</button><button data-tab="users">کاربران</button><button data-tab="messages">پیام‌ها</button></div>
-<section class="admin-panel" id="tab-products"><h2>افزودن قالب</h2><form id="productForm" class="admin-form"><input name="title" placeholder="نام قالب" required><input name="category" placeholder="دسته‌بندی" required><input name="price_rial" type="number" min="1" placeholder="قیمت به ریال" required><input name="image_url" placeholder="آدرس تصویر اختیاری"><input name="storage_path" placeholder="مسیر فایل ZIP در Storage"><textarea name="description" placeholder="توضیحات قالب"></textarea><label class="hint"><input type="checkbox" name="featured"> قالب ویژه</label><button class="btn primary">ثبت قالب</button></form><p id="productMessage" class="hint"></p></section>
-<section class="admin-panel" id="tab-orders" hidden><h2>سفارش‌ها</h2><div id="orders" class="hint">در حال دریافت...</div></section>
-<section class="admin-panel" id="tab-users" hidden><h2>حساب‌های کاربری</h2><div id="users" class="hint">در حال دریافت...</div></section>
-<section class="admin-panel" id="tab-messages" hidden><h2>صندوق پیام‌ها</h2><div id="messages" class="hint">در حال دریافت...</div><div class="admin-chat"><select id="messageUser" class="user-select"></select><input id="replyText" maxlength="2000" placeholder="پاسخ به کاربر..."><button id="replyButton">ارسال پاسخ</button></div></section>
-</main><script>
-const $=s=>document.querySelector(s);async function api(url,opts={}){const r=await fetch(url,opts);const d=await r.json().catch(()=>({}));if(!r.ok)throw Error(d.error||'خطا');return d;}
-document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{document.querySelectorAll('[data-tab]').forEach(x=>x.classList.toggle('active',x===b));['products','orders','users','messages'].forEach(t=>$('#tab-'+t).hidden=t!==b.dataset.tab);});
-$('#productForm').onsubmit=async e=>{e.preventDefault();let f=new FormData(e.target),b=Object.fromEntries(f.entries());b.price_rial=Number(b.price_rial);b.featured=f.has('featured');try{await api('/api/admin/products',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)});$('#productMessage').textContent='قالب ثبت شد.';e.target.reset();}catch(x){$('#productMessage').textContent=x.message;}};
-const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-let users=[];
-async function load(){try{const [orders,us]=await Promise.all([api('/api/admin/orders'),api('/api/admin/users')]);users=us;$('#orders').innerHTML=orders.map(o=>`<div class="admin-row"><span>${esc(o.product_title)}<br>${new Date(o.created_at).toLocaleString('fa-IR')}</span><b>${Number(o.amount_rial).toLocaleString('fa-IR')} ریال — ${esc(o.status)}</b></div>`).join('')||'سفارشی وجود ندارد.';$('#users').innerHTML=us.map(u=>`<div class="admin-row"><span>${esc(u.username)}</span><b>${esc(u.role)}</b></div>`).join('');$('#messageUser').innerHTML=us.filter(u=>u.role!=='admin').map(u=>`<option value="${esc(u.id)}">${esc(u.username)}</option>`).join('');await loadMessages();}catch(e){$('#orders').textContent=e.message;}}
-async function loadMessages(){try{const m=await api('/api/messages');$('#messages').innerHTML=m.map(x=>`<div class="admin-row"><span><b>${esc(x.sender_role)}</b> — ${esc(x.body)}</span><small>${new Date(x.created_at).toLocaleString('fa-IR')}</small></div>`).join('')||'پیامی نیست.';}catch(e){$('#messages').textContent=e.message;}}
-$('#replyButton').onclick=async()=>{const body=$('#replyText').value.trim(),user_id=$('#messageUser').value;if(!body||!user_id)return;try{await api('/api/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({body,user_id})});$('#replyText').value='';await loadMessages();}catch(e){alert(e.message);}};
-load();
-</script></body></html>
+
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>KAREN WEB | Owner Center</title>
+<link rel="stylesheet" href="/style.css">
+<style>
+:root{color-scheme:dark}
+body{background:#090912;color:#eee;font-family:inherit}
+.admin-wrap{max-width:1150px;margin:35px auto;padding:16px}
+.top{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px}
+.panel{background:#151522;border:1px solid #ffffff18;border-radius:16px;padding:20px;margin:16px 0}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin:20px 0}
+.stat{background:#1b1930;border:1px solid #a78bfa33;border-radius:13px;padding:18px}
+.stat b{display:block;font-size:25px;color:#c4b5fd;margin-top:8px}
+.tabs{display:flex;gap:8px;flex-wrap:wrap;margin:20px 0}
+button{cursor:pointer;border:0;border-radius:9px;padding:11px 16px;background:#29263d;color:white}
+button.primary{background:#9875f5;color:#100c1b}
+button.danger{background:#a33d53}
+button:disabled{opacity:.5}
+.tabs button.active{background:#9875f5;color:#100c1b}
+input,textarea,select{width:100%;box-sizing:border-box;background:#0c0c17;color:white;border:1px solid #ffffff25;border-radius:9px;padding:12px;margin:5px 0;font:inherit}
+textarea{min-height:85px}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.form-grid .wide{grid-column:1/-1}
+.item{border-top:1px solid #ffffff18;padding:15px 0;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.item small{color:#aaa;display:block;margin-top:6px}
+.actions{display:flex;gap:7px;flex-wrap:wrap}
+.muted{color:#aaa;line-height:2}
+.msg{padding:12px;background:#211e31;border-radius:10px;margin:8px 0}
+.hidden{display:none!important}
+@media(max-width:600px){.form-grid{grid-template-columns:1fr}.form-grid .wide{grid-column:auto}}
+</style>
+</head>
+<body>
+<header class="topbar">
+<a class="brand" href="/">
+<span class="brand-mark">K</span>
+<span>KAREN<span class="brand-light">WEB</span>
+<small>OWNER CONTROL CENTER</small></span>
+</a>
+<a class="admin-link" href="/">بازگشت به فروشگاه ↗</a>
+</header>
+
+<main class="admin-wrap">
+
+<div class="top">
+<div>
+<div class="muted">OWNER ACCESS / CONTROL PANEL</div>
+<h1>مرکز مدیریت KAREN WEB</h1>
+<p id="welcome" class="muted">در حال بررسی دسترسی...</p>
+</div>
+<button onclick="refreshAll()">⟳ بروزرسانی اطلاعات</button>
+</div>
+
+<div id="notice" class="panel muted">در حال بررسی حساب مالک...</div>
+
+<div id="dashboard" class="hidden">
+
+<div class="stats">
+<div class="stat">قالب‌های فعال<b id="statProducts">۰</b></div>
+<div class="stat">کاربران<b id="statUsers">۰</b></div>
+<div class="stat">سفارش‌ها<b id="statOrders">۰</b></div>
+<div class="stat">سفارش‌های پرداخت‌شده<b id="statPaid">۰</b></div>
+</div>
+
+<div class="tabs">
+<button class="active" data-tab="products">قالب‌ها</button>
+<button data-tab="orders">سفارش‌ها</button>
+<button data-tab="users">کاربران</button>
+<button data-tab="messages">پیام‌ها</button>
+</div>
+
+<section id="tab-products" class="panel">
+<h2>مدیریت قالب‌ها</h2>
+<h3 id="formTitle">افزودن قالب جدید</h3>
+
+<form id="productForm">
+<input type="hidden" name="id">
+<div class="form-grid">
+<input name="title" placeholder="نام قالب" required>
+<input name="category" placeholder="دسته‌بندی" required>
+<input name="price_rial" type="number" min="1" placeholder="قیمت به ریال" required>
+<input name="image_url" placeholder="آدرس تصویر">
+<input name="storage_path" placeholder="مسیر فایل در Storage">
+<textarea class="wide" name="description" placeholder="توضیحات قالب"></textarea>
+<label class="muted"><input type="checkbox" name="featured" style="width:auto"> قالب ویژه</label>
+</div>
+<div class="actions">
+<button class="primary" type="submit">ذخیره قالب</button>
+<button type="button" id="cancelEdit" class="hidden">لغو ویرایش</button>
+</div>
+</form>
+<p id="productMessage" class="muted"></p>
+<hr>
+<h3>فهرست قالب‌ها</h3>
+<div id="products" class="muted">در حال دریافت...</div>
+</section>
+
+<section id="tab-orders" class="panel hidden">
+<h2>مدیریت سفارش‌ها</h2>
+<div id="orders" class="muted">در حال دریافت...</div>
+</section>
+
+<section id="tab-users" class="panel hidden">
+<h2>مدیریت کاربران</h2>
+<div id="users" class="muted">در حال دریافت...</div>
+</section>
+
+<section id="tab-messages" class="panel hidden">
+<h2>صندوق پیام‌ها</h2>
+<div id="messages" class="muted">در حال دریافت...</div>
+<hr>
+<h3>پاسخ به کاربر</h3>
+<select id="messageUser">
+<option value="">انتخاب کاربر</option>
+</select>
+<textarea id="replyText" maxlength="2000" placeholder="متن پاسخ..."></textarea>
+<button class="primary" id="replyButton">ارسال پاسخ</button>
+<p id="replyMessage" class="muted"></p>
+</section>
+
+</div>
+</main>
+
+<script>
+const $ = s => document.querySelector(s);
+
+let users = [];
+let products = [];
+let orders = [];
+
+async function api(url,options={}) {
+  const response = await fetch(url,{
+    credentials:'same-origin',
+    ...options,
+    headers:{
+      ...(options.headers||{}),
+      ...(options.body ? {'Content-Type':'application/json'} : {})
+    }
+  });
+
+  const data = await response.json().catch(()=>({}));
+
+  if(!response.ok) {
+    throw new Error(data.error || 'درخواست ناموفق بود.');
+  }
+
+  return data;
+}
+
+const esc = value => String(value ?? '').replace(/[&<>"']/g,c=>({
+  '&':'&amp;',
+  '<':'&lt;',
+  '>':'&gt;',
+  '"':'&quot;',
+  "'":'&#39;'
+}[c]));
+
+const rial = n => Number(n||0).toLocaleString('fa-IR')+' ریال';
+
+function showNotice(message) {
+  $('#notice').textContent = message;
+}
+
+async function checkOwner() {
+  try {
+    const result = await api('/api/auth/me');
+
+    if(!result.user) {
+      showNotice('برای ورود به پنل ابتدا وارد حساب مالک شوید.');
+      return false;
+    }
+
+    if(result.user.username.toLowerCase() !== 'karenone' ||
+       result.user.role !== 'admin') {
+      showNotice('دسترسی غیرمجاز. این پنل مخصوص KARENONE است.');
+      return false;
+    }
+
+    $('#welcome').textContent = 'خوش آمدی، '+result.user.username;
+    $('#dashboard').classList.remove('hidden');
+    showNotice('دسترسی مالک تأیید شد.');
+    return true;
+
+  } catch(e) {
+    showNotice(e.message);
+    return false;
+  }
+}
+
+document.querySelectorAll('[data-tab]').forEach(button=>{
+  button.onclick=()=>{
+    document.querySelectorAll('[data-tab]').forEach(b=>
+      b.classList.toggle('active',b===button)
+    );
+
+    ['products','orders','users','messages'].forEach(tab=>{
+      $('#tab-'+tab).classList.toggle(
+        'hidden',tab!==button.dataset.tab
+      );
+    });
+  };
+});
+
+async function loadProducts() {
+  products = await api('/api/products');
+
+  $('#products').innerHTML = products.map(p=>`
+    <div class="item">
+      <div>
+        <b>${esc(p.title)}</b>
+        <small>${esc(p.category)} — ${rial(p.price_rial)}</small>
+        <small>${esc(p.description)}</small>
+      </div>
+      <div class="actions">
+        <button onclick="editProduct('${esc(p.id)}')">ویرایش</button>
+        <button class="danger" onclick="deleteProduct('${esc(p.id)}')">حذف</button>
+      </div>
+    </div>
+  `).join('') || 'هنوز قالبی ثبت نشده است.';
+
+  $('#statProducts').textContent = products.length.toLocaleString('fa-IR');
+}
+
+async function loadOrders() {
+  orders = await api('/api/admin/orders');
+
+  $('#orders').innerHTML = orders.map(o=>`
+    <div class="item">
+      <div>
+        <b>${esc(o.product_title)}</b>
+        <small>شناسه سفارش: ${esc(o.id)}</small>
+        <small>${new Date(o.created_at).toLocaleString('fa-IR')}</small>
+      </div>
+      <div>
+        <b>${rial(o.amount_rial)}</b>
+        <small>وضعیت: ${esc(o.status)}</small>
+      </div>
+    </div>
+  `).join('') || 'سفارشی وجود ندارد.';
+
+  $('#statOrders').textContent = orders.length.toLocaleString('fa-IR');
+  $('#statPaid').textContent =
+    orders.filter(o=>o.status==='paid').length.toLocaleString('fa-IR');
+}
+
+async function loadUsers() {
+  users = await api('/api/admin/users');
+
+  $('#users').innerHTML = users.map(u=>`
+    <div class="item">
+      <div>
+        <b>${esc(u.username)}</b>
+        <small>نقش: ${esc(u.role)}</small>
+        <small>${u.created_at ? new Date(u.created_at).toLocaleString('fa-IR') : ''}</small>
+      </div>
+    </div>
+  `).join('') || 'کاربری وجود ندارد.';
+
+  $('#statUsers').textContent = users.length.toLocaleString('fa-IR');
+
+  $('#messageUser').innerHTML =
+    '<option value="">انتخاب کاربر</option>' +
+    users.filter(u=>u.role!=='admin').map(u=>
+      `<option value="${esc(u.id)}">${esc(u.username)}</option>`
+    ).join('');
+}
+
+async function loadMessages() {
+  const messages = await api('/api/messages');
+
+  $('#messages').innerHTML = messages.map(m=>`
+    <div class="msg">
+      <b>${m.sender_role==='admin'?'مدیر':'کاربر'}</b>
+      <p>${esc(m.body)}</p>
+      <small>${new Date(m.created_at).toLocaleString('fa-IR')}</small>
+    </div>
+  `).join('') || 'پیامی وجود ندارد.';
+}
+
+async function refreshAll() {
+  try {
+    await Promise.all([
+      loadProducts(),
+      loadOrders(),
+      loadUsers()
+    ]);
+    await loadMessages();
+    showNotice('اطلاعات با موفقیت بروزرسانی شد.');
+  } catch(e) {
+    showNotice(e.message);
+  }
+}
+
+function editProduct(id) {
+  const p = products.find(x=>String(x.id)===String(id));
+  if(!p) return;
+
+  const f = $('#productForm');
+
+  f.elements.id.value = p.id;
+  f.elements.title.value = p.title || '';
+  f.elements.category.value = p.category || '';
+  f.elements.price_rial.value = p.price_rial || '';
+  f.elements.image_url.value = p.image_url || '';
+  f.elements.storage_path.value = p.storage_path || '';
+  f.elements.description.value = p.description || '';
+  f.elements.featured.checked = Boolean(p.featured);
+
+  $('#formTitle').textContent = 'ویرایش قالب';
+  $('#cancelEdit').classList.remove('hidden');
+
+  document.querySelector('[data-tab="products"]').click();
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+function resetForm() {
+  $('#productForm').reset();
+  $('#productForm').elements.id.value = '';
+  $('#formTitle').textContent = 'افزودن قالب جدید';
+  $('#cancelEdit').classList.add('hidden');
+}
+
+$('#cancelEdit').onclick=resetForm;
+
+$('#productForm').onsubmit=async e=>{
+  e.preventDefault();
+
+  const f = e.target;
+  const id = f.elements.id.value;
+
+  const body = {
+    title:f.elements.title.value.trim(),
+    category:f.elements.category.value.trim(),
+    price_rial:Number(f.elements.price_rial.value),
+    image_url:f.elements.image_url.value.trim(),
+    storage_path:f.elements.storage_path.value.trim(),
+    description:f.elements.description.value.trim(),
+    featured:f.elements.featured.checked
+  };
+
+  try {
+    if(id) {
+      await api('/api/admin/products/'+encodeURIComponent(id),{
+        method:'PATCH',
+        body:JSON.stringify(body)
+      });
+    } else {
+      await api('/api/admin/products',{
+        method:'POST',
+        body:JSON.stringify(body)
+      });
+    }
+
+    $('#productMessage').textContent = 'قالب با موفقیت ذخیره شد.';
+    resetForm();
+    await loadProducts();
+
+  } catch(err) {
+    $('#productMessage').textContent = err.message;
+  }
+};
+
+async function deleteProduct(id) {
+  if(!confirm('قالب غیرفعال شود؟')) return;
+
+  try {
+    await api('/api/admin/products/'+encodeURIComponent(id),{
+      method:'DELETE'
+    });
+    await loadProducts();
+    showNotice('قالب غیرفعال شد.');
+  } catch(e) {
+    showNotice(e.message);
+  }
+}
+
+$('#replyButton').onclick=async()=>{
+  const body = $('#replyText').value.trim();
+  const user_id = $('#messageUser').value;
+
+  if(!body || !user_id) {
+    $('#replyMessage').textContent='کاربر و متن پیام را انتخاب کن.';
+    return;
+  }
+
+  try {
+    await api('/api/messages',{
+      method:'POST',
+      body:JSON.stringify({body,user_id})
+    });
+
+    $('#replyText').value='';
+    $('#replyMessage').textContent='پاسخ ارسال شد.';
+    await loadMessages();
+
+  } catch(e) {
+    $('#replyMessage').textContent=e.message;
+  }
+};
+
+(async()=>{
+  if(await checkOwner()) await refreshAll();
+})();
+</script>
+</body>
+</html>
