@@ -117,6 +117,8 @@ async function ensureOwnerAccount() {
   } else if (found.role !== 'admin') {
     const { error } = await db.from('users').update({ role:'admin' }).eq('id', found.id);
     if (error) throw error;
+      }
+}
   
 app.get('/api/messages', auth, requireDb, asyncRoute(async (req, res) => {
   let query = db.from('messages')
