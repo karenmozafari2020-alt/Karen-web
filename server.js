@@ -125,34 +125,68 @@ app.get('/api/health', (req,res) => res.json({
   payment:PAYMENT_MODE, registration:'username-required'
 }));
 
+
 app.post('/api/auth/register', requireDb, asyncRoute(async (req,res) => {
   const username = String(req.body?.username || '').trim().toLowerCase();
   const password = String(req.body?.password || '');
-  if (!validUsername(username)) return res.status(400).json({error:'نام کاربری باید ۳ تا ۲۴ حرف انگلیسی، عدد یا _ باشد.'});
-  if (password.length < 8 || password.length > 128) return res.status(400).json({error:'رمز عبور باید حداقل ۸ کاراکتر باشد.'});
-  if (username === ADMIN_USERNAME) return res.status(409).json({error:'این نام کاربری مخصوص حساب مالک است.'});
-  const salt = crypto.randomBytes(16).toString('hex');
-  const { data, error } = await db.from('users').insert({
-    username, password_salt:salt, password_hash:hashPassword(password,salt), role:'customer'
-  }).select('id,username,role').single();
-  
-  setSession(res,data);
-  res.json({ok:true,user:{username:data.username,role:data.role}});
-}));
-if (error) {
-  console.error('REGISTER DATABASE ERROR:', {
-    code: error.code,
-    message: error.message,
-    details: error.details,
-    hint: error.hint
-  });
 
-  if (error.code === '23505') {
-    return res.status(409).json({error:'این نام کاربری قبلاً ثبت شده است.'});
+  if (!validUsername(username)) {
+    return res.status(400).json({
+      error: 'نام کاربری باید ۳ تا ۲۴ حرف انگلیسی، عدد یا _ باشد.'
+    });
   }
 
-  return res.status(500).json({error:'ثبت‌نام انجام نشد. کد خطا: ' + (error.code || 'UNKNOWN')});
-}
+  if (password.length < 8 || password.length > 128) {
+    return res.status(400).json({
+      error: 'رمز عبور باید حداقل ۸ کاراکتر باشد.'
+    });
+  }
+
+  if (username === ADMIN_USERNAME) {
+    return res.status(409).json({
+      error: 'این نام کاربری مخصوص حساب مالک است.'
+    });
+  }
+
+  const salt = crypto.randomBytes(16).toString('hex');
+
+  const { data, error } = await db.from('users').insert({
+    username,
+    password_salt: salt,
+    password_hash: hashPassword(password, salt),
+    role: 'customer'
+  }).select('id,username,role').single();
+
+  if (error) {
+    console.error('REGISTER DATABASE ERROR:', {
+      code: error.code,
+      message: error.message,
+      details: error.details,
+      hint: error.hint
+    });
+
+    if (error.code === '23505') {
+      return res.status(409).json({
+        error: 'این نام کاربری قبلاً ثبت شده است.'
+      });
+    }
+
+    return res.status(500).json({
+      error: 'ثبت‌نام انجام نشد. کد خطا: ' + (error.code || 'UNKNOWN')
+    });
+  }
+
+  setSession(res, data);
+
+  return res.json({
+    ok: true,
+    user: {
+      username: data.username,
+      role: data.role
+    }
+  });
+}));
+
 app.post('/api/auth/login', requireDb, asyncRoute(async (req,res) => {
   const username = String(req.body?.username || '').trim().toLowerCase();
   const password = String(req.body?.password || '');
