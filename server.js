@@ -118,12 +118,58 @@ async function ensureOwnerAccount() {
     const { error } = await db.from('users').update({ role:'admin' }).eq('id', found.id);
     if (error) throw error;
   }
-}
 
-app.get('/api/health', (req,res) => res.json({
-  ok:true, app:'KAREN WEB', database:dbReady?'connected':'demo',
-  payment:PAYMENT_MODE, registration:'username-required'
+app.get('/api/messages', auth, requireDb, asyncRoute(async (req, res) => {
+  let query = db.from('messages')
+    .select('id,user_id,sender_role,body,created_at')
+    .order('created_at', { ascending: true })
+    .limit(150);
+
+  if (req.user.role !== 'admin') {
+    query = query.eq('user_id', req.user.id);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    return res.status(500).json({
+      error: 'دریافت پیام‌ها ناموفق بود.'
+    });
+  }
+
+  const ids = [...new Set((data || [])
+    .filter(x => x.sender_role !== 'admin')
+    .map(x => x.user_id))];
+
+  let userMap = {};
+
+  if (ids.length) {
+    const { data: users, error: usersError } = await db
+      .from('users')
+      .select('id,username')
+      .in('id', ids);
+
+    if (usersError) {
+      return res.status(500).json({
+        error: 'دریافت نام کاربران ناموفق بود.'
+      });
+    }
+
+    userMap = Object.fromEntries(
+      (users || []).map(u => [u.id, u.username])
+    );
+  }
+
+  const messages = (data || []).map(x => ({
+    ...x,
+    sender_name: x.sender_role === 'admin'
+      ? 'مدیر'
+      : (userMap[x.user_id] || 'کاربر')
+  }));
+
+  res.json(messages);
 }));
+
 
 
 app.post('/api/auth/register', requireDb, asyncRoute(async (req,res) => {
