@@ -135,14 +135,24 @@ app.post('/api/auth/register', requireDb, asyncRoute(async (req,res) => {
   const { data, error } = await db.from('users').insert({
     username, password_salt:salt, password_hash:hashPassword(password,salt), role:'customer'
   }).select('id,username,role').single();
-  if (error) {
-    if (error.code === '23505') return res.status(409).json({error:'این نام کاربری قبلاً ثبت شده است.'});
-    return res.status(500).json({error:'ثبت‌نام انجام نشد.'});
-  }
+  
   setSession(res,data);
   res.json({ok:true,user:{username:data.username,role:data.role}});
 }));
+if (error) {
+  console.error('REGISTER DATABASE ERROR:', {
+    code: error.code,
+    message: error.message,
+    details: error.details,
+    hint: error.hint
+  });
 
+  if (error.code === '23505') {
+    return res.status(409).json({error:'این نام کاربری قبلاً ثبت شده است.'});
+  }
+
+  return res.status(500).json({error:'ثبت‌نام انجام نشد. کد خطا: ' + (error.code || 'UNKNOWN')});
+}
 app.post('/api/auth/login', requireDb, asyncRoute(async (req,res) => {
   const username = String(req.body?.username || '').trim().toLowerCase();
   const password = String(req.body?.password || '');
