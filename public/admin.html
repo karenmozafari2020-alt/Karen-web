@@ -251,23 +251,19 @@ async function loadUsers() {
   users = await api('/api/admin/users');
 
   $('#users').innerHTML = users.map(u=>`
-    <div class="item">
-      <div>
-        <b>${esc(u.username)}</b>
-        <small>نقش: ${esc(u.role)}</small>
-        <small>${u.created_at ? new Date(u.created_at).toLocaleString('fa-IR') : ''}</small>
-      </div>
+  
+async function loadMessages() {
+  const messages = await api('/api/messages');
+
+  $('#messages').innerHTML = messages.map(m => `
+    <div class="msg">
+      <b>${esc(m.sender_name || (m.sender_role === 'admin' ? 'مدیر' : 'کاربر'))}</b>
+      <p>${esc(m.body)}</p>
+      <small>${new Date(m.created_at).toLocaleString('fa-IR')}</small>
     </div>
-  `).join('') || 'کاربری وجود ندارد.';
-
-  $('#statUsers').textContent = users.length.toLocaleString('fa-IR');
-
-  $('#messageUser').innerHTML =
-    '<option value="">انتخاب کاربر</option>' +
-    users.filter(u=>u.role!=='admin').map(u=>
-      `<option value="${esc(u.id)}">${esc(u.username)}</option>`
-    ).join('');
+  `).join('') || 'پیامی وجود ندارد.';
 }
+
 
 async function loadMessages() {
   const messages = await api('/api/messages');
