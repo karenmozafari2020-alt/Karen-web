@@ -8,7 +8,7 @@
 <link rel="stylesheet" href="/style.css">
 <style>
 :root{color-scheme:dark}
-body{background:#090912;color:#eee;font-family:inherit}
+body{background:#090912;color:#eee}
 .admin-wrap{max-width:1150px;margin:35px auto;padding:16px}
 .top{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px}
 .panel{background:#151522;border:1px solid #ffffff18;border-radius:16px;padding:20px;margin:16px 0}
@@ -35,6 +35,7 @@ textarea{min-height:85px}
 </style>
 </head>
 <body>
+
 <header class="topbar">
 <a class="brand" href="/">
 <span class="brand-mark">K</span>
@@ -45,7 +46,6 @@ textarea{min-height:85px}
 </header>
 
 <main class="admin-wrap">
-
 <div class="top">
 <div>
 <div class="muted">OWNER ACCESS / CONTROL PANEL</div>
@@ -93,6 +93,7 @@ textarea{min-height:85px}
 <button type="button" id="cancelEdit" class="hidden">لغو ویرایش</button>
 </div>
 </form>
+
 <p id="productMessage" class="muted"></p>
 <hr>
 <h3>فهرست قالب‌ها</h3>
@@ -174,9 +175,9 @@ async function checkOwner() {
       return false;
     }
 
-    if(result.user.username.toLowerCase() !== 'karenone' ||
+    if(String(result.user.username).toLowerCase() !== 'karenone' ||
        result.user.role !== 'admin') {
-      showNotice('دسترسی غیرمجاز. این پنل مخصوص KARENONE است.');
+      showNotice('دسترسی غیرمجاز. این پنل مخصوص مالک است.');
       return false;
     }
 
@@ -186,7 +187,7 @@ async function checkOwner() {
     return true;
 
   } catch(e) {
-    showNotice(e.message);
+    showNotice('خطا در بررسی دسترسی: '+e.message);
     return false;
   }
 }
@@ -231,9 +232,9 @@ async function loadOrders() {
   $('#orders').innerHTML = orders.map(o=>`
     <div class="item">
       <div>
-        <b>${esc(o.product_title)}</b>
+        <b>${esc(o.product_title || 'محصول')}</b>
         <small>شناسه سفارش: ${esc(o.id)}</small>
-        <small>${new Date(o.created_at).toLocaleString('fa-IR')}</small>
+        <small>${o.created_at ? new Date(o.created_at).toLocaleString('fa-IR') : ''}</small>
       </div>
       <div>
         <b>${rial(o.amount_rial)}</b>
@@ -251,43 +252,52 @@ async function loadUsers() {
   users = await api('/api/admin/users');
 
   $('#users').innerHTML = users.map(u=>`
-  
-async function loadMessages() {
-  const messages = await api('/api/messages');
-
-  $('#messages').innerHTML = messages.map(m => `
-    <div class="msg">
-      <b>${esc(m.sender_name || (m.sender_role === 'admin' ? 'مدیر' : 'کاربر'))}</b>
-      <p>${esc(m.body)}</p>
-      <small>${new Date(m.created_at).toLocaleString('fa-IR')}</small>
+    <div class="item">
+      <div>
+        <b>${esc(u.username)}</b>
+        <small>نقش: ${esc(u.role)}</small>
+        <small>${u.created_at ? new Date(u.created_at).toLocaleString('fa-IR') : ''}</small>
+      </div>
     </div>
-  `).join('') || 'پیامی وجود ندارد.';
-}
+  `).join('') || 'کاربری وجود ندارد.';
 
+  const customers = users.filter(u=>u.role!=='admin');
+
+  $('#messageUser').innerHTML =
+    '<option value="">انتخاب کاربر</option>' +
+    customers.map(u=>`
+      <option value="${esc(u.id)}">${esc(u.username)}</option>
+    `).join('');
+
+  $('#statUsers').textContent = users.length.toLocaleString('fa-IR');
+}
 
 async function loadMessages() {
   const messages = await api('/api/messages');
 
   $('#messages').innerHTML = messages.map(m=>`
     <div class="msg">
-      <b>${m.sender_role==='admin'?'مدیر':'کاربر'}</b>
+      <b>${esc(m.sender_name || (m.sender_role === 'admin' ? 'مدیر' : 'کاربر'))}</b>
       <p>${esc(m.body)}</p>
-      <small>${new Date(m.created_at).toLocaleString('fa-IR')}</small>
+      <small>${m.created_at ? new Date(m.created_at).toLocaleString('fa-IR') : ''}</small>
     </div>
   `).join('') || 'پیامی وجود ندارد.';
 }
 
 async function refreshAll() {
+  showNotice('در حال بروزرسانی اطلاعات...');
+
   try {
     await Promise.all([
       loadProducts(),
       loadOrders(),
-      loadUsers()
+      loadUsers(),
+      loadMessages()
     ]);
-    await loadMessages();
+
     showNotice('اطلاعات با موفقیت بروزرسانی شد.');
   } catch(e) {
-    showNotice(e.message);
+    showNotice('خطا در دریافت اطلاعات: '+e.message);
   }
 }
 
@@ -367,6 +377,7 @@ async function deleteProduct(id) {
     await api('/api/admin/products/'+encodeURIComponent(id),{
       method:'DELETE'
     });
+
     await loadProducts();
     showNotice('قالب غیرفعال شد.');
   } catch(e) {
@@ -399,7 +410,9 @@ $('#replyButton').onclick=async()=>{
 };
 
 (async()=>{
-  if(await checkOwner()) await refreshAll();
+  if(await checkOwner()) {
+    await refreshAll();
+  }
 })();
 </script>
 </body>
